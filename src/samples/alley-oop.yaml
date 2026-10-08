@@ -1,0 +1,62 @@
+# 08 Alley-Oop (spec §50). The big is pulled out to the left slot. His defender overplays
+# the passing lane (deny) with his back to the rim — so the big cuts behind him and the
+# handler throws it up to the front of the rim. The big leaves the floor on time, catches
+# in the air and finishes. Validates lob trajectory, jump timing, airborne catch, finish.
+version: "0.1"
+
+play:
+  id: alley-oop
+  name: Alley-Oop
+  description: Big is denied at the slot, cuts behind his man, lob to the front of the rim.
+
+actors:
+  handler:  { character: generic_guard, team: offense, role: ball_handler }
+  big:      { character: generic_big, team: offense, role: finisher }
+  wing:     { character: generic_wing, team: offense, role: spacer }
+  corner_l: { character: generic_wing, team: offense, role: spacer }
+  corner_r: { character: generic_wing, team: offense, role: spacer }
+  x1: { character: generic_defender, team: defense, assignment: handler }
+  x5: { character: generic_big, team: defense, assignment: big }
+  x2: { character: generic_defender, team: defense, assignment: wing }
+  x3: { character: generic_defender, team: defense, assignment: corner_l }
+  x4: { character: generic_defender, team: defense, assignment: corner_r }
+
+setup:
+  handler:  { position: { spot: right_slot, offset: [-1.2, 0.6] }, possession: ball }
+  big:      { position: { x: -2.8, z: 6.4 } }
+  wing:     { position: right_wing }
+  corner_l: { position: left_corner }
+  corner_r: { position: right_corner }
+  x1: { relative_to: handler, defensive_position: on_ball }
+  x5: { relative_to: big, defensive_position: matchup }
+  x2: { relative_to: wing, defensive_position: matchup }
+  x3: { relative_to: corner_l, defensive_position: help }
+  x4: { relative_to: corner_r, defensive_position: help }
+
+graph:
+  start:
+    actions:
+      # Ask for it: step toward the ball and let the defender jump the lane.
+      - { actor: big, action: move, to: { x: -2.4, z: 6.9 }, speed: walk }
+    transitions:
+      - when: big.denied
+        to: lob
+      - when: { elapsed: 3 }
+        to: lob
+
+  lob:
+    actions:
+      - { actor: big, action: back_cut, to: { x: 0.2, z: 0.9 } }
+      - { actor: handler, action: alley_oop, target: big, to: { x: 0.15, z: 0.8 }, when: { elapsed: 0.35 } }
+    transitions:
+      - when: big.caught
+        to: slam
+
+  slam:
+    actions:
+      - { actor: big, action: dunk }
+
+simulation:
+  seed: 19
+  defense:
+    deny: true

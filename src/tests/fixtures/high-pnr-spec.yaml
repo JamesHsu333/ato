@@ -1,0 +1,133 @@
+# The High Pick & Roll example from spec §22, verbatim apart from the switch_read and
+# hedge_read nodes, which the spec references but does not define.
+version: "0.1"
+
+play:
+  id: high-pnr
+  name: High Pick & Roll
+
+court:
+  type: nba_half
+
+actors:
+  handler:
+    character: generic_guard
+    team: offense
+    role: ball_handler
+  screener:
+    character: generic_big
+    team: offense
+    role: screener
+  x1:
+    character: generic_defender
+    team: defense
+    assignment: handler
+  x5:
+    character: generic_defender
+    team: defense
+    assignment: screener
+
+setup:
+  handler:
+    position: top
+    possession: ball
+  screener:
+    position: right_elbow
+  x1:
+    relative_to: handler
+    defensive_position: on_ball
+  x5:
+    relative_to: screener
+    defensive_position: matchup
+
+graph:
+  start:
+    actions:
+      - actor: screener
+        action: move
+        to:
+          relative_to: x1
+          purpose: screen
+    transitions:
+      - when:
+          event: screener.screen_position_ready
+        to: screen
+
+  screen:
+    actions:
+      - actor: screener
+        action: screen
+        target: x1
+        angle: auto
+        hold_until: handler.clears_screen
+      - actor: handler
+        action: drive
+        via: screener.right_shoulder
+    transitions:
+      - when:
+          event: handler.clears_screen
+        to: read
+
+  read:
+    transitions:
+      - when:
+          coverage: under
+        to: pull_up
+      - when:
+          coverage: drop
+        to: drop_read
+      - when:
+          coverage: switch
+        to: switch_read
+      - when:
+          coverage: hedge
+        to: hedge_read
+      - when:
+          coverage: go_over
+        to: downhill
+
+  drop_read:
+    player_options:
+      - id: pocket_pass
+        action:
+          actor: handler
+          action: pass
+          target: screener
+          type: smart
+      - id: floater
+        action:
+          actor: handler
+          action: shoot
+          type: floater
+
+  pull_up:
+    actions:
+      - actor: handler
+        action: shoot
+        type: pull_up
+
+  switch_read:
+    actions:
+      - actor: handler
+        action: drive
+        to: restricted_area
+
+  hedge_read:
+    actions:
+      - actor: screener
+        action: roll
+        to: right_elbow
+
+  downhill:
+    actions:
+      - actor: screener
+        action: roll
+        to: rim
+      - actor: handler
+        action: drive
+        to: rim
+
+simulation:
+  seed: 42
+  shot_outcome:
+    mode: simulated

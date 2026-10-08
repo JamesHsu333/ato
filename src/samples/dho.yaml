@@ -1,0 +1,56 @@
+# 07 Dribble Handoff (spec §50). The big holds the ball at the top; the guard runs at
+# him, takes it hip-to-hip and turns the corner while the big rolls.
+version: "0.1"
+
+play:
+  id: dho
+  name: Dribble Handoff
+  description: Guard takes a handoff from the big at the top and turns the corner.
+
+actors:
+  big:      { character: generic_big, team: offense, role: hub }
+  guard:    { character: generic_guard, team: offense, role: ball_handler }
+  wing:     { character: generic_wing, team: offense, role: spacer }
+  corner_l: { character: generic_wing, team: offense, role: spacer }
+  corner_r: { character: generic_wing, team: offense, role: spacer }
+  x5: { character: generic_big, team: defense, assignment: big }
+  x1: { character: generic_defender, team: defense, assignment: guard }
+  x2: { character: generic_defender, team: defense, assignment: wing }
+  x3: { character: generic_defender, team: defense, assignment: corner_l }
+  x4: { character: generic_defender, team: defense, assignment: corner_r }
+
+setup:
+  big:      { position: { spot: top, offset: [-0.4, 0.2] }, possession: ball }
+  guard:    { position: left_wing }
+  wing:     { position: right_wing }
+  corner_l: { position: left_corner }
+  corner_r: { position: right_corner }
+  x5: { relative_to: big, defensive_position: on_ball }
+  x1: { relative_to: guard, defensive_position: matchup }
+  x2: { relative_to: wing, defensive_position: matchup }
+  x3: { relative_to: corner_l, defensive_position: help }
+  x4: { relative_to: corner_r, defensive_position: help }
+
+graph:
+  start:
+    actions:
+      - { actor: big, action: handoff, target: guard }
+      # Run hip-to-hip past the big, take it, turn the corner.
+      - { actor: guard, action: drive, via: big.right_shoulder, speed: sprint }
+    transitions:
+      - when: guard.caught
+        to: turn_corner
+
+  turn_corner:
+    actions:
+      - { actor: big, action: roll, to: rim, speed: sprint }
+    player_options:
+      - id: pull_up
+        label: Pull-up
+        action: { actor: guard, action: shoot, type: pull_up, when: { elapsed: 0.9 } }
+      - id: hit_big
+        label: Hit the rolling big
+        action: { actor: guard, action: pass, target: big, when: { elapsed: 0.8 } }
+
+simulation:
+  seed: 17

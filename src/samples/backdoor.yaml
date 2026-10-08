@@ -1,0 +1,72 @@
+# 06 Backdoor Cut (spec §50). The wing V-cuts out; if his defender overplays the passing
+# lane (deny), he cuts backdoor behind him and the handler hits him going to the rim.
+# If he is not denied, he simply catches on the wing.
+version: "0.1"
+
+play:
+  id: backdoor
+  name: Backdoor Cut
+  description: Wing V-cuts; when denied, he goes backdoor for a layup.
+
+actors:
+  handler: { character: generic_guard, team: offense, role: ball_handler }
+  wing:    { character: generic_wing, team: offense, role: cutter }
+  big:     { character: generic_big, team: offense, role: post }
+  corner:  { character: generic_wing, team: offense, role: spacer }
+  slot:    { character: generic_guard, team: offense, role: spacer }
+  x1: { character: generic_defender, team: defense, assignment: handler }
+  x2: { character: generic_defender, team: defense, assignment: wing }
+  x5: { character: generic_big, team: defense, assignment: big }
+  x3: { character: generic_defender, team: defense, assignment: corner }
+  x4: { character: generic_defender, team: defense, assignment: slot }
+
+setup:
+  handler: { position: { spot: right_slot, offset: [-1.6, 0.6] }, possession: ball }
+  wing:    { position: { x: 5.2, z: 2.2 } }
+  big:     { position: left_block }
+  corner:  { position: left_corner }
+  slot:    { position: left_wing }
+  x1: { relative_to: handler, defensive_position: on_ball }
+  x2: { relative_to: wing, defensive_position: matchup }
+  x5: { relative_to: big, defensive_position: matchup }
+  x3: { relative_to: corner, defensive_position: help }
+  x4: { relative_to: slot, defensive_position: help }
+
+graph:
+  start:
+    actions:
+      - { actor: wing, action: v_cut, to: right_wing }
+    transitions:
+      # Cut trigger: the defender gets into the passing lane.
+      - when: wing.denied
+        to: backdoor
+      - when: { elapsed: 3.0 }
+        to: entry
+
+  backdoor:
+    actions:
+      - { actor: wing, action: back_cut, to: { spot: restricted_area, offset: [0.4, 0.3] } }
+      - { actor: handler, action: pass, target: wing, when: { elapsed: 0.45 } }
+    transitions:
+      - when: wing.caught
+        to: finish
+
+  entry:
+    actions:
+      - { actor: handler, action: pass, target: wing }
+    transitions:
+      - when: wing.caught
+        to: wing_shot
+
+  finish:
+    actions:
+      - { actor: wing, action: layup }
+
+  wing_shot:
+    actions:
+      - { actor: wing, action: shoot, type: catch_and_shoot }
+
+simulation:
+  seed: 13
+  defense:
+    deny: true

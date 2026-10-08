@@ -1,0 +1,91 @@
+# 05 Horns (spec §50): bigs at both elbows, shooters in the corners. The handler picks
+# which elbow to use — the entry branches; the other big pops to keep the floor spaced.
+version: "0.1"
+
+play:
+  id: horns
+  name: Horns
+  description: Two bigs at the elbows; the guard chooses a side, the other big pops.
+
+actors:
+  handler:  { character: generic_guard, team: offense, role: ball_handler }
+  big_l:    { character: generic_big, team: offense, role: screener }
+  big_r:    { character: generic_big, team: offense, role: screener }
+  corner_l: { character: generic_wing, team: offense, role: spacer }
+  corner_r: { character: generic_wing, team: offense, role: spacer }
+  x1: { character: generic_defender, team: defense, assignment: handler }
+  x4: { character: generic_big, team: defense, assignment: big_l }
+  x5: { character: generic_big, team: defense, assignment: big_r }
+  x2: { character: generic_defender, team: defense, assignment: corner_l }
+  x3: { character: generic_defender, team: defense, assignment: corner_r }
+
+setup:
+  handler:  { position: { spot: top, offset: [0, 0.8] }, possession: ball }
+  big_l:    { position: left_elbow }
+  big_r:    { position: right_elbow }
+  corner_l: { position: left_corner }
+  corner_r: { position: right_corner }
+  x1: { relative_to: handler, defensive_position: on_ball }
+  x4: { relative_to: big_l, defensive_position: matchup }
+  x5: { relative_to: big_r, defensive_position: matchup }
+  x2: { relative_to: corner_l, defensive_position: help }
+  x3: { relative_to: corner_r, defensive_position: help }
+
+graph:
+  # Branching entry: which horn?
+  start:
+    player_options:
+      - id: right_horn
+        label: Use the right elbow
+        action: { actor: handler, action: move, to: { spot: top, offset: [-0.7, 0.9] }, speed: walk }
+      - id: left_horn
+        label: Use the left elbow
+        action: { actor: handler, action: move, to: { spot: top, offset: [0.7, 0.9] }, speed: walk }
+    transitions:
+      - when: play.option.right_horn
+        to: right_pnr
+      - when: play.option.left_horn
+        to: left_pnr
+
+  right_pnr:
+    actions:
+      - { actor: big_r, action: screen, target: x1, speed: sprint, hold_until: handler.clears_screen }
+      - { actor: big_l, action: pop, to: left_wing, when: big_r.screen_set }
+      - { actor: handler, action: drive, via: big_r.right_shoulder, when: big_r.screen_set }
+    transitions:
+      - when: handler.clears_screen
+        to: right_finish
+
+  left_pnr:
+    actions:
+      - { actor: big_l, action: screen, target: x1, speed: sprint, hold_until: handler.clears_screen }
+      - { actor: big_r, action: pop, to: right_wing, when: big_l.screen_set }
+      - { actor: handler, action: drive, via: big_l.left_shoulder, when: big_l.screen_set }
+    transitions:
+      - when: handler.clears_screen
+        to: left_finish
+
+  right_finish:
+    actions:
+      - { actor: big_r, action: roll, to: rim, speed: sprint }
+      - { actor: handler, action: drive, to: { spot: restricted_area, offset: [0.5, 0.4] }, speed: sprint }
+    transitions:
+      - when: handler.drive_done
+        to: layup
+
+  left_finish:
+    actions:
+      - { actor: big_l, action: roll, to: rim, speed: sprint }
+      - { actor: handler, action: drive, to: { spot: restricted_area, offset: [-0.5, 0.4] }, speed: sprint }
+    transitions:
+      - when: handler.drive_done
+        to: layup
+
+  layup:
+    actions:
+      - { actor: handler, action: layup }
+
+simulation:
+  seed: 5
+  defense:
+    coverage: go_over

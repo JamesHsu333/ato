@@ -1,0 +1,148 @@
+# 01 High Pick & Roll (spec §22, §50).
+# 4-out / 1-in: the big sprints up from the block to screen the ball at the top.
+# The handler sets his man up away from the screen, waits for it to be set, comes
+# off shoulder-to-shoulder and reads the screener's defender. Every coverage branch
+# finishes with a shot or a catch at the rim.
+version: "0.1"
+
+play:
+  id: high-pnr
+  name: High Pick & Roll
+  description: Big screens the ball at the top from the right block; read the coverage.
+
+court:
+  type: nba_half
+
+actors:
+  handler:   { character: generic_guard, team: offense, role: ball_handler }
+  screener:  { character: generic_big, team: offense, role: screener }
+  wing:      { character: generic_guard, team: offense, role: spacer }
+  corner_l:  { character: generic_wing, team: offense, role: spacer }
+  corner_r:  { character: generic_wing, team: offense, role: spacer }
+  x1:        { character: generic_defender, team: defense, assignment: handler }
+  x5:        { character: generic_big, team: defense, assignment: screener }
+  x2:        { character: generic_defender, team: defense, assignment: wing }
+  x3:        { character: generic_defender, team: defense, assignment: corner_l }
+  x4:        { character: generic_defender, team: defense, assignment: corner_r }
+
+setup:
+  handler:  { position: { spot: top, offset: [0.4, 0.6] }, possession: ball }
+  screener: { position: right_block }
+  wing:     { position: left_wing }
+  corner_l: { position: left_corner }
+  corner_r: { position: right_corner }
+  x1: { relative_to: handler, defensive_position: on_ball }
+  x5: { relative_to: screener, defensive_position: matchup }
+  x2: { relative_to: wing, defensive_position: help }
+  x3: { relative_to: corner_l, defensive_position: help }
+  x4: { relative_to: corner_r, defensive_position: matchup }
+
+graph:
+  start:
+    actions:
+      - actor: screener
+        action: screen
+        target: x1
+        speed: sprint
+        hold_until: handler.clears_screen
+      # Set the defender up: jab away from the screen while the big comes up...
+      - actor: handler
+        action: move
+        to: { spot: top, offset: [-0.8, 0.9] }
+        speed: walk
+      # ...then wait for the screen to be set before coming off it.
+      - actor: handler
+        action: drive
+        via: screener.right_shoulder
+        when: screener.screen_set
+    transitions:
+      - when: handler.clears_screen
+        to: read
+
+  read:
+    transitions:
+      - { when: { coverage: under }, to: pull_up }
+      - { when: { coverage: drop }, to: drop_read }
+      - { when: { coverage: switch }, to: switch_read }
+      - { when: { coverage: hedge }, to: hedge_read }
+      - { when: { coverage: go_over }, to: downhill }
+      - { when: { coverage: man }, to: downhill }
+
+  # Big sits back: the mid-range pull-up is there, or hit the roller early.
+  drop_read:
+    actions:
+      - { actor: screener, action: roll, to: rim, speed: sprint }
+    player_options:
+      - id: pull_up
+        label: Pull-up jumper
+        action: { actor: handler, action: shoot, type: pull_up, when: { elapsed: 0.75 } }
+      - id: pocket_pass
+        label: Pocket pass
+        action: { actor: handler, action: pass, target: screener, when: { elapsed: 0.35 } }
+      - id: floater
+        label: Floater
+        action: { actor: handler, action: shoot, type: floater, when: { elapsed: 0.8 } }
+    transitions:
+      - when: screener.caught
+        to: roller_finish
+
+  # Defender went under: shoot it right behind the screen.
+  pull_up:
+    actions:
+      - { actor: handler, action: shoot, type: pull_up_three }
+
+  # Defender went over, big at the level: turn the corner and get downhill.
+  downhill:
+    actions:
+      - { actor: screener, action: roll, to: rim, speed: sprint }
+      - { actor: handler, action: drive, to: restricted_area, speed: sprint }
+    transitions:
+      - when: handler.drive_done
+        to: finish
+
+  # Big switched onto the guard: attack the mismatch; the screener seals the small.
+  switch_read:
+    actions:
+      - { actor: handler, action: drive, to: { spot: restricted_area, offset: [-0.6, 0.2] }, speed: sprint }
+      - { actor: screener, action: move, to: right_block, speed: run }
+    transitions:
+      - when: handler.drive_done
+        to: finish
+
+  # Hard hedge: retreat dribble to beat the show, then hit the short roll.
+  hedge_read:
+    actions:
+      - { actor: handler, action: move, to: { spot: top, offset: [1.8, 1.4] }, speed: jog }
+      - { actor: screener, action: roll, to: { x: 0.8, z: 4.4 }, speed: run }
+    transitions:
+      - when: { all: [handler.move_done, screener.roll_done] }
+        to: short_roll
+
+  short_roll:
+    actions:
+      - { actor: handler, action: pass, target: screener }
+    transitions:
+      - when: screener.caught
+        to: roller_finish
+
+  roller_finish:
+    actions:
+      - { actor: screener, action: drive, to: { spot: restricted_area, offset: [0.3, 0] }, speed: run }
+    transitions:
+      - when: screener.drive_done
+        to: big_finish
+
+  big_finish:
+    actions:
+      - { actor: screener, action: shoot, type: layup }
+
+  finish:
+    actions:
+      - { actor: handler, action: shoot, type: layup }
+
+simulation:
+  seed: 42
+  shot_outcome:
+    mode: simulated
+  defense:
+    coverage: drop

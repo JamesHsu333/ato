@@ -1,0 +1,80 @@
+# 04 Spain Pick & Roll (spec §50): a high ball screen, then a shooter back-screens the
+# roller's defender and pops to the top. Two screening actions, multi-stage graph.
+version: "0.1"
+
+play:
+  id: spain-pnr
+  name: Spain Pick & Roll
+  description: Ball screen at the top; a shooter back-screens the big's defender, then pops.
+
+actors:
+  handler:  { character: generic_guard, team: offense, role: ball_handler }
+  screener: { character: generic_big, team: offense, role: screener }
+  spain:    { character: generic_wing, team: offense, role: back_screener }
+  corner_l: { character: generic_wing, team: offense, role: spacer }
+  corner_r: { character: generic_wing, team: offense, role: spacer }
+  x1: { character: generic_defender, team: defense, assignment: handler }
+  x5: { character: generic_big, team: defense, assignment: screener }
+  x2: { character: generic_defender, team: defense, assignment: spain }
+  x3: { character: generic_defender, team: defense, assignment: corner_l }
+  x4: { character: generic_defender, team: defense, assignment: corner_r }
+
+setup:
+  handler:  { position: { spot: top, offset: [0, 0.6] }, possession: ball }
+  screener: { position: right_elbow }
+  spain:    { position: { x: -0.8, z: 4.6 } }
+  corner_l: { position: left_corner }
+  corner_r: { position: right_corner }
+  x1: { relative_to: handler, defensive_position: on_ball }
+  x5: { relative_to: screener, defensive_position: matchup }
+  x2: { relative_to: spain, defensive_position: matchup }
+  x3: { relative_to: corner_l, defensive_position: help }
+  x4: { relative_to: corner_r, defensive_position: help }
+
+graph:
+  start:
+    actions:
+      - { actor: screener, action: screen, target: x1, speed: sprint, hold_until: handler.clears_screen }
+      - { actor: handler, action: drive, via: screener.right_shoulder, when: screener.screen_set }
+    transitions:
+      - when: handler.clears_screen
+        to: spain
+
+  # Big rolls; the back-screener hits the big's defender on the way.
+  spain:
+    actions:
+      - { actor: screener, action: roll, to: rim, speed: sprint }
+      - { actor: spain, action: screen, target: x5, hold_until: screener.roll_done, speed: sprint }
+      - { actor: spain, action: pop, to: top, when: spain.screen_done, speed: sprint }
+    player_options:
+      - id: hit_roller
+        label: Lob to the roller
+        action: { actor: handler, action: lob, target: screener, when: spain.screen_set }
+      - id: kick_popper
+        label: Kick to the popper
+        action: { actor: handler, action: pass, target: spain, when: spain.pop_done }
+    transitions:
+      - when: screener.caught
+        to: big_finish
+      - when: spain.caught
+        to: three
+
+  big_finish:
+    actions:
+      - { actor: screener, action: drive, to: { spot: restricted_area, offset: [0.2, -0.2] }, speed: sprint }
+    transitions:
+      - when: screener.drive_done
+        to: slam
+
+  slam:
+    actions:
+      - { actor: screener, action: dunk }
+
+  three:
+    actions:
+      - { actor: spain, action: shoot, type: catch_and_shoot }
+
+simulation:
+  seed: 11
+  defense:
+    coverage: drop

@@ -1,0 +1,58 @@
+# 02 Elevator Doors (spec §50, Demo B).
+# Two bigs stand side by side at the top of the key with a gap between them — the
+# "doors". The shooter sprints up from under the rim through the gap; only once he is
+# through do the doors close on his chaser. Pass is delivered for a catch-and-shoot three.
+version: "0.1"
+
+play:
+  id: elevator
+  name: Elevator Doors
+  description: Shooter runs through two side-by-side screeners who close the doors behind him.
+
+actors:
+  handler: { character: generic_guard, team: offense, role: ball_handler }
+  shooter: { character: generic_wing, team: offense, role: shooter }
+  door_l:  { character: generic_big, team: offense, role: screener }
+  door_r:  { character: generic_big, team: offense, role: screener }
+  corner:  { character: generic_wing, team: offense, role: spacer }
+  x1: { character: generic_defender, team: defense, assignment: handler }
+  x2: { character: generic_defender, team: defense, assignment: shooter }
+  x4: { character: generic_big, team: defense, assignment: door_l }
+  x5: { character: generic_big, team: defense, assignment: door_r }
+  x3: { character: generic_defender, team: defense, assignment: corner }
+
+setup:
+  handler: { position: right_wing, possession: ball }
+  shooter: { position: { x: 0.3, z: 1.6 } }
+  door_l:  { position: { x: -1.6, z: 5.4 } }
+  door_r:  { position: { x: 1.6, z: 5.4 } }
+  corner:  { position: left_corner }
+  x1: { relative_to: handler, defensive_position: on_ball }
+  x2: { position: { x: 0.2, z: 2.3 } }
+  x4: { relative_to: door_l, defensive_position: matchup }
+  x5: { relative_to: door_r, defensive_position: matchup }
+  x3: { relative_to: corner, defensive_position: help }
+
+graph:
+  start:
+    actions:
+      # The doors open: each big takes his side of the gap and waits for the shooter.
+      - { actor: door_l, action: elevator, for: shooter, to: { x: -0.85, z: 6.5 }, close_to: { x: -0.42, z: 6.5 }, speed: sprint }
+      - { actor: door_r, action: elevator, for: shooter, to: { x: 0.85, z: 6.5 }, close_to: { x: 0.42, z: 6.5 }, speed: sprint }
+      # Shooter goes once both doors are set, straight up the middle to the top.
+      - actor: shooter
+        action: cut
+        to: { x: 0, z: 8.6 }
+        when: { all: [door_l.screen_set, door_r.screen_set] }
+      # Pass is delivered as he comes out of the elevator.
+      - { actor: handler, action: pass, target: shooter, when: shooter.clears_screen }
+    transitions:
+      - when: shooter.caught
+        to: shoot
+
+  shoot:
+    actions:
+      - { actor: shooter, action: shoot, type: catch_and_shoot }
+
+simulation:
+  seed: 7
